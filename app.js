@@ -13,7 +13,8 @@ app.use(express.static('public'))
 app.use(bodyParser.urlencoded({extended:false}))
 app.use(bodyParser.json())
 
-app.use("/users",require("./routers/homeRouter"))
+app.use("/users",require("./routers/users"));
+app.use("/admin/user",require("./routers/admin/user_router"))
 
 app.use((err, req, res, next) => {
     err.statusCode = err.statusCode || 500;
@@ -23,14 +24,20 @@ app.use((err, req, res, next) => {
       message: err.message,
     });
   });
-  
-  /** catch 404 and forward to error handler */
-  app.use("*", (req, res) => {
-    return res.status(404).json({
-      success: false,
-      message: "API endpoint doesnt exist",
+
+  app.get("/", (req, res) => {
+    res.status(200).json({
+      message: "Demo Apis are running....",
     });
   });
+  
+  /** catch 404 and forward to error handler */
+  app.get("*", (req, res) => {
+    res.status(404).json({
+      message: "Url Does not exit",
+    });
+  });
+  
 
 const port= process.env.PORT || 5000;
 app.listen(port, () => {
