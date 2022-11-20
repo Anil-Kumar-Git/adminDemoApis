@@ -1,0 +1,8 @@
+{
+    "JWT_SECRET":"0987654321",
+    "DB_URL":"mongodb://localhost:27017/DemoCollection",
+    "USER_EMAIL":"anilkumar.eminence@gmail.com",
+    "USER_PASS":"pmbwajrfmmdjyzix",
+    "CLIENT_URL_FRONT":"http://localhost:5000",
+    "JWTSECRET":"1234567890abc"
+}
