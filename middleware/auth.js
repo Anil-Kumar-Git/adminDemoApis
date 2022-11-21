@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/users");
 
-const makeid = require("../helpers/numericId");
+// const makeid = require("../helpers/numericId");
 
 exports.auth = async (req, res, next) => {
   const code = 401;

@@ -1,19 +1,16 @@
 const User = require("../models/users");
-// const bcrypt = require("bcrypt");
-const md5 = require("md5")
+const md5 = require("md5");
 const jwt = require("jsonwebtoken");
 var mongoose = require("mongoose");
-const userAggregationData= require("../aggregation/user")
-// const { Send200, Send400, Send500 } = require("../helpers/userResponce");
-// const {
-//   checkValidation,
-//   generateToken,
-//   validPwd,
-//   sendMail,
-//   oneTimeAuth,
-// } = require("../helpers/users");
-const CONFIG = require("../config.json");
-// const passwordModal = require("../models/passwordModal");
+const userAggregationData = require("../aggregation/user");
+const _ = require("lodash");
+
+const {
+  sendVerificationCodeViaEmail,
+  verifyCodeViaEmail,
+} = require("../helpers/emailVerification");
+
+//login
 
 const login = async (req, res) => {
   let code = 400;
@@ -66,7 +63,7 @@ const login = async (req, res) => {
         if (req.body.fcmToken) {
           const { fcmToken } = req.body;
 
-          console.log(fcmToken,"fcmToken")
+          console.log(fcmToken, "fcmToken");
 
           user = await User.findOneAndUpdate(
             { _id: user._id },
@@ -77,7 +74,7 @@ const login = async (req, res) => {
           );
         }
 
-        const accessToken = jwt.sign({ user }, CONFIG.JWT_SECRET);
+        const accessToken = jwt.sign({ user }, process.env.JWTSECRET);
 
         let where = { _id: new mongoose.Types.ObjectId(user._id) };
 
@@ -121,199 +118,479 @@ const login = async (req, res) => {
   }
 };
 
+// registration
 
+const initiateRegister = async (req, res) => {
+  let code = 400;
+  const { value, type } = req.body;
 
+  if (type == "email") {
+    const userCount = await User.count({ email: value });
 
+    if (userCount > 0) {
+      return res.status(code).json({
+        code,
+        message: "Email already exists!",
+        errors: { email: "Email already exists!" },
+      });
+    }
+  } else {
+    const userCount = await User.count({
+      mobile_phone: value,
+    });
 
+    if (userCount > 0) {
+      return res.status(code).json({
+        code,
+        message: "Mobile Phone already exists!",
+        errors: { mobile_phone: "Mobile Phone already exists!" },
+      });
+    }
+  }
+  if (type == "email") {
+    const verificationId = await sendVerificationCodeViaEmail(value);
 
-// const allUsers = async (req, res) => {
-//   try {
-//     const usersData = await User.find();
-//     if (usersData) {
-//       return Send200(res, "Users details get successful", usersData);
-//     } else {
-//       return Send400(res, "Users not found");
-//     }
-//   } catch (err) {
-//     return Send500(res, "Something wrong, try again later!", err.message);
-//   }
-// };
+    if (verificationId) {
+      code = 200;
+      return res.status(code).json({
+        code,
+        message: "Verification code sent!",
+        data: { verificationId },
+      });
+    }
+    return res.status(code).json({
+      code,
+      message: "Something went wrong!",
+      errors: {},
+    });
+  } else {
+    return res.status(code).json({
+      code,
+      message: "only email accepted",
+      errors: {},
+    });
+    //   sendVerificationCode(type, value, (error, response) => {
+    //     if (error) {
+    //       return res.status(code).json({
+    //         code,
+    //         message: errorMessage(error),
+    //         errors: {},
+    //       });
+    //     } else {
+    //       code = 200;
+    //       return res.status(code).json({
+    //         code,
+    //         message: "Verification code sent!",
+    //         data: { verificationId: response.id },
+    //       });
+    //     }
+    //   });
+  }
+};
 
-// const updateUser = async (req, res) => {
-//   try {
-//     const _id = req.params.id;
-//     const user = await User.findOne({ _id });
-//     const { name, phoneNumber, email, address } = req.body;
+const create = async (req, res) => {
+  let code = 400;
+  try {
+    const body = _.pickBy(_.get(req, "body"), (value, key) => {
+      return (
+        key === "token" ||
+        key === "verificationId" ||
+        key === "email" ||
+        key === "mobile_phone" ||
+        key === "password" ||
+        key === "countryCode" ||
+        key === "mobile_without_code" ||
+        key === "fcmToken"
+      );
+    });
+    const { token, verificationId } = body;
+    let user_checkBy_email = null;
+    if (body.email) {
+      user_checkBy_email = await User.findOne({ email: body.email });
+    }
+    let user_checkBy_phone = null;
+    if (body.mobile_phone) {
+      user_checkBy_phone = await User.findOne({
+        mobile_phone: body.mobile_phone,
+      });
+    }
+    if (user_checkBy_email && user_checkBy_phone.email !== null) {
+      return res.status(code).json({
+        code,
+        message: "email is already exits ",
+        errors: {},
+      });
+    }
 
-//     if (checkValidation(name, phoneNumber, email, user.password, res)) {
-//       const userData = {
-//         ...req.body,
-//       };
-//       const result = await User.updateOne({ _id }, { ...userData });
-//       if (result) {
-//         return Send200(res, "user update successful");
-//       } else {
-//         return Send400(res, "user not updated");
-//       }
-//     }
-//   } catch (err) {
-//     return Send500(res, "Something wrong, try again later!", err.message);
-//   }
-// };
+    if (user_checkBy_phone && user_checkBy_phone.mobile_phone !== null) {
+      return res.status(code).json({
+        code,
+        message: "phone is already exits ",
+        errors: {},
+      });
+    }
 
-// const changePwd = async (req, res) => {
-//   try {
-//     const { oldPassword, newPassword } = req.body;
-//     if (validPwd(newPassword)) {
-//       const _id = req._user;
-//       const user = await User.findById({ _id });
-//       const validUser = await bcrypt.compare(oldPassword, user.password);
-//       console.log(user);
-//       if (validUser) {
-//         console.log(newPassword);
-//         let hashPassword = await bcrypt.hash(newPassword.toString(), 10);
-//         let updatePassword = await User.findByIdAndUpdate(
-//           { _id },
-//           { password: hashPassword }
-//         );
-//         if (updatePassword) {
-//           return Send200(res, "password change successful");
-//         } else {
-//           return Send400(res, "password not changes");
-//         }
-//       } else {
-//         Send400(res, "Old password is incorrect");
-//       }
-//     } else {
-//       Send400(res, "enter a strong password (like: A,a,1,#)");
-//     }
-//   } catch (err) {}
-// };
+    if (body.email) {
+      let success = await verifyCodeViaEmail(verificationId, token);
+      if (!success) {
+        return res.status(code).json({
+          code,
+          message:
+            "The one time passcode is incorrect. Please re-enter or resend code",
+          errors: {},
+        });
+      } else {
+        code = 200;
+        body.password = md5(body.password);
+        delete body.verificationId;
+        delete body.token;
 
-// const deleteUser = async (req, res) => {
-//   try {
-//     const _id = req.params.id;
-//     const user = await User.findOne({ _id });
-//     if (user) {
-//       const deleteUser = await User.deleteOne({ _id });
-//       if (deleteUser) {
-//         return Send200(res, "user delete successful");
-//       }
-//     } else {
-//       return Send400(res, "user not found");
-//     }
-//   } catch (err) {
-//     return Send500(res, "Something wrong, try again later!", err.message);
-//   }
-// };
+        body.emailVerified = true;
+        body.mobilePhoneVerified = false;
+        // body.stripeCustomerId = await addNewCustomer({ email: body.email });
+        let user = await User.create(body);
+        // newUserNotification(user);
+        return res.status(code).json({
+          code,
+          message: "User Created",
+          data: user,
+          accessToken: jwt.sign({ user }, process.env.JWTSECRET),
+        });
+      }
+    } else {
+      return res.status(code).json({
+        code,
+        message: "only email accepted",
+        errors: {},
+      });
+      // checkVerificationCode(token, verificationId, async (error, response) => {
+      //   console.log(response);
+      //   if (error) {
+      //     return res.status(code).json({
+      //       code,
+      //       message: errorMessage(error),
+      //       errors: {},
+      //     });
+      //   } else {
+      //     code = 200;
+      //     body.password = md5(body.password);
+      //     delete body.verificationId;
+      //     delete body.token;
 
-// const singup = async (req, res) => {
-//   try {
-//     const { name, phoneNumber, email, password, address } = req.body;
-//     if (checkValidation(name, phoneNumber, email, password, res)) {
-//       const user = await User.findOne({ email });
-//       if (user) {
-//         return Send400(res, "Email Already Exists");
-//       } else {
-//         const Npassword = await bcrypt.hash(password.toString(), 10);
-//         req.body.password = Npassword;
-//         const newUser = {
-//           ...req.body,
-//         };
-//         console.log(req.body);
-//         const result = await User.create(newUser);
-//         return Send200(res, "Signup successfully!", result);
-//       }
-//     }
-//   } catch (err) {
-//     return Send500(res, "Something wrong, try again later!", err.message);
-//   }
-// };
+      //     body.emailVerified = body.email ? true : false;
+      //     body.mobilePhoneVerified = body.mobile_phone ? true : false;
 
-// const singleUser = async (req, res) => {
-//   try {
-//     const Id = req.params.id;
-//     if (!Id) {
-//       return Send400(res, "Id is required ");
-//     }
+      //     let user = await User.create(body);
+      //     newUserNotification(user);
+      //     return res.status(code).json({
+      //       code,
+      //       message: "User Created",
+      //       data: user,
+      //       accessToken: jwt.sign({ user }, process.env.JWTSECRET),
+      //     });
+      //   }
+      // });
+    }
+  } catch (err) {
+    return res
+      .status(code)
+      .json({ code, message: err.message, errors: { error: err.message } });
+  }
+};
 
-//     const payload = { _id: Id };
-//     let data = await User.findOne(payload);
-//     if (data) {
-//       return Send200(res, "User found successfully", data);
-//     } else {
-//       return Send400(res, "User not found");
-//     }
-//   } catch (err) {
-//     return Send500(res, "Something wrong, try again later!", err.message);
-//   }
-// };
+// forgetPassword
 
-// const forgotPwd = async (req, res) => {
-//   try {
-//     const { email } = req.body;
-//     const validUser = await User.findOne({ email });
-//     if (validUser) {
-//       let token = generateToken(validUser);
-//       const mailDetails = {
-//         from: CONFIG.USER_EMAIL,
-//         to: email,
-//         subject: "Your reseat password link :-",
-//         html: `<a href="${CONFIG.CLIENT_URL_FRONT}/reset-password/${token}">click here to reset you password</a>`,
-//       };
-//       const mailDone = await sendMail(mailDetails);
-//       if (mailDone) {
-//         return Send200(res, "reset password send Link on email");
-//       } else {
-//         return Send400(res, "Link not sent");
-//       }
-//     } else {
-//       return Send400(res, "user not exist");
-//     }
-//   } catch (err) {
-//     return Send500(res, "Something wrong, try again later!", err.message);
-//   }
-// };
+const initiateForgotPassword = async (req, res) => {
+  const { type, value, userType } = req.body;
+  let code = 400;
 
-// const resetPwd = async (req, res) => {
-//   try {
-//     const { password, token } = req.body;
-//     const payload = oneTimeAuth(token);
-//     if (payload) {
-//       const findToken = await passwordModal.findOne(payload);
-//       console.log(findToken,"find token")
-//       if (findToken) {
-//         return Send500(res, "token expire only one time use");
-//       } else {
-//         let pwdmodel=  await passwordModal.create(payload);
-//         let hashPwd = await bcrypt.hash(password.toString(), 10);
-//         let updatePwd = await User.updateOne(
-//           { _id: payload.userId},
-//           { password: hashPwd }
-//         );
-//         console.log(pwdmodel,"moadl")
-//         if (updatePwd.modifiedCount==1) {
-//           return Send200(res, "password reseat successful");
-//         } else {
-//           return Send400(res, "reseat password not changed");
-//         }
-//       }
-//     } else {
-//       return Send400(res, "token expire or somthingwrong with password");
-//     }
-//   } catch (err) {
-//     return Send500(res, "Something wrong, try again later!", err.message);
-//   }
-// };
+  let where = {};
+
+  if (type == "email") {
+    where.email = value;
+  } else {
+    where.mobile_phone = value;
+  }
+
+  const user = await User.findOne(where);
+
+  if (user) {
+    if (
+      (userType == "admin" && user.role != "admin") ||
+      (userType == "user" && user.role != "user")
+    ) {
+      return res.status(code).json({
+        code,
+        message: "You are not a valid user to access this",
+        errors: {},
+      });
+    }
+
+    if (type == "email") {
+      const verificationId = await sendVerificationCodeViaEmail(user.email);
+
+      if (verificationId) {
+        code = 200;
+        return res.status(code).json({
+          code,
+          message: "Verification code sent!",
+          data: { verificationId },
+        });
+      }
+      return res.status(code).json({
+        code,
+        message: "Something went wrong!",
+        errors: {},
+      });
+    } else {
+      return res.status(code).json({
+        code,
+        message: "only type email",
+        errors: {},
+      });
+      // sendVerificationCode(type, value, (error, response) => {
+      //   if (error) {
+      //     return res.status(code).json({
+      //       code,
+      //       message: errorMessage(error),
+      //       errors: {},
+      //     });
+      //   } else {
+      //     code = 200;
+      //     return res.status(code).json({
+      //       code,
+      //       message: "Verification code sent!",
+      //       data: { verificationId: response.id },
+      //     });
+      //   }
+      // });
+    }
+  } else {
+    const error =
+      type == "email"
+        ? "Please provide registered email address"
+        : " Please provide registered phone number";
+
+    const errors =
+      type == "email"
+        ? { email: "Please provide registered email address" }
+        : { mobile_phone: " Please provide registered phone number" };
+
+    return res.status(code).json({ code, message: error, errors });
+  }
+};
+
+const verifyForgotPasswordCode = async (req, res) => {
+  let code = 400;
+
+  try {
+    const { token, verificationId, value, type } = req.body;
+
+    let where = {};
+
+    if (type == "email") {
+      where.email = value;
+    } else {
+      where.mobile_phone = value;
+    }
+
+    const user = await User.findOne(where);
+
+    if (type == "mobile_phone") {
+      return res.status(code).json({
+        code,
+        message: "only email type accepet",
+        errors: {},
+      });
+      // checkVerificationCode(token, verificationId, async (error, response) => {
+      //   if (error) {
+      //     return res.status(code).json({
+      //       code,
+      //       message: errorMessage(error),
+      //       errors: {},
+      //     });
+      //   } else {
+      //     code = 200;
+      //     return res.status(code).json({
+      //       code,
+      //       message: response.status,
+      //       accessToken: jwt.sign({ _id: user._id }, process.env.JWTSECRET, {
+      //         expiresIn: "300s",
+      //       }),
+      //     });
+      //   }
+      // });
+    } else {
+      let success = await verifyCodeViaEmail(verificationId, token);
+
+      if (!success) {
+        return res.status(code).json({
+          code,
+          message:
+            "The one time passcode is either incorrect or expired. Please re-enter or resend code",
+          errors: {},
+        });
+      } else {
+        code = 200;
+        return res.status(code).json({
+          code,
+          message: "Otp matched",
+          accessToken: jwt.sign({ _id: user._id }, process.env.JWTSECRET, {
+            expiresIn: "300s",
+          }),
+        });
+      }
+    }
+  } catch (err) {
+    return res
+      .status(code)
+      .json({ code, message: err.message, errors: { error: err.message } });
+  }
+};
+
+//password change forgetPwd
+
+const updatePassword = async (req, res) => {
+  let code = 400;
+  try {
+    let { body } = req;
+    let { _id } = req;
+
+    if (_id) {
+      code = 200;
+      body.password = md5(body.password);
+      await User.findOneAndUpdate({ _id }, body);
+      return res.status(code).json({
+        code,
+        message: "Password Changed",
+        data: {},
+      });
+    } else {
+      return res.status(code).json({
+        code,
+        message: "id not found",
+        data: {},
+      });
+    }
+  } catch (err) {
+    return res
+      .status(code)
+      .json({ code, message: err.message, errors: { error: err.message } });
+  }
+};
+
+// get admin profile 
+
+const get = async (req, res) => {
+  let code = 400;
+  try {
+    let { _id } = req.user;
+     console.log(req.params,"param")
+    if (_.has(req.params, "id")) {
+      _id = req.params.id;
+    }
+
+    _id = mongoose.Types.ObjectId(_id);
+
+    let $match = {
+      _id,
+    };
+
+    let userAggregation = userAggregationData();
+
+    userAggregation.push({
+      $match,
+    });
+
+    const users = await User.aggregate(userAggregation);
+
+    if (users.length > 0) {
+      const user = users[0];
+
+      code = 200;
+      return res.status(code).json({
+        code,
+        message: "Data fetched",
+        data: user,
+      });
+    }
+    return res.status(code).json({
+      code,
+      message: "No user found",
+      errors: { error: "No user found" },
+    });
+  } catch (err) {
+    return res
+      .status(code)
+      .json({ code, message: err.message, errors: { error: err.message } });
+  }
+};
+
+//reset password 
+
+const resetPassword = async (req, res) => {
+  let code = 400;
+  try {
+    let { oldPassword, newPassword } = req.body;
+    oldPassword = md5(oldPassword);
+    newPassword = md5(newPassword);
+
+    let { _id } = req.user;
+
+    let { password } = await User.findById(_id);
+
+    if (oldPassword == password) {
+      code = 200;
+      await User.findOneAndUpdate({ _id }, { password: newPassword });
+      return res.status(code).json({
+        code,
+        message: "Password Changed",
+        data: {},
+      });
+    }
+    return res.status(code).json({
+      code,
+      message: "Old password does not match",
+      errors: {},
+    });
+  } catch (err) {
+    return res
+      .status(code)
+      .json({ code, message: err.message, errors: { error: err.message } });
+  }
+};
+
+//delete account permanently
+
+const deletePermanently = async (req, res) => {
+  let code = 400;
+  try {
+    let { _id } = req.user;
+
+    code = 200;
+
+    await User.deleteOne({ _id });
+
+    return res.status(code).json({
+      code,
+      message: "Your account has been deleted!",
+      data: {},
+    });
+  } catch (err) {
+    return res
+      .status(code)
+      .json({ code, message: err.message, errors: { error: err.message } });
+  }
+};
 
 module.exports = {
-  // forgotPwd,
-  // updateUser,
-  // allUsers,
-  // deleteUser,
-  // singup,
   login,
-  // singleUser,
-  // changePwd,
-  // resetPwd,
+  create,
+  initiateRegister,
+  initiateForgotPassword,
+  verifyForgotPasswordCode,
+  updatePassword,
+  get,
+  resetPassword,
+  deletePermanently
 };

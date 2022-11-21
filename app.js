@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const bodyParser=require("body-parser");
 const cors=require("cors")
@@ -13,8 +14,19 @@ app.use(express.static('public'))
 app.use(bodyParser.urlencoded({extended:false}))
 app.use(bodyParser.json())
 
+// app.use("/uploads", express.static("uploads"));
+// app.use("/service", require("./routes/service.js"));
+// app.use("/page", require("./routes/page.js"));
+// app.use("/order", require("./routes/order.js"));
+// // app.use("/user-notification", require("./routes/userNotification.js"));
+// app.use("/admin-notification", require("./routes/adminNotification.js"));
+// app.use("/order_details", require("./routes/order_details.js"));
+// app.use("/admin/order", require("./routes/admin/order.js"));
+// app.use("/admin/page", require("./routes/admin/page.js"));
+// app.use("/notificationLogs", require("./routes/notificationLogs"));
+// app.use("/card", require("./routes/payment.js"));
 app.use("/users",require("./routers/users"));
-app.use("/admin/user",require("./routers/admin/user_router"))
+// app.use("/admin/user",require("./routers/admin/user_router"))
 
 app.use((err, req, res, next) => {
     err.statusCode = err.statusCode || 500;
