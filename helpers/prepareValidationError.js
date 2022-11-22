@@ -1,4 +1,5 @@
 const { validationResult } = require("express-validator");
+
 const prepareValidationError = (req, res, next) => {
   const validationObj = validationResult(req);
   if (!validationObj.isEmpty()) {

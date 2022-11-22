@@ -583,6 +583,41 @@ const deletePermanently = async (req, res) => {
   }
 };
 
+// update profile 
+
+const updateProfile = async (req, res) => {
+  try {
+    const body = _.pickBy(_.get(req, "body"), (value, key) => {
+      return (
+        key === "email" ||
+        key === "mobile_phone" ||
+        key === "countryCode" ||
+        key === "mobile_without_code"
+      );
+    });
+    const { email, mobile_phone, countryCode, mobile_without_code } = body;
+    if (!email && !mobile_phone && !countryCode && !mobile_without_code) {
+      return res.status(400).json({
+        code: 400,
+        message: "No value Is found",
+      });
+    }
+    let user = await User.findByIdAndUpdate(req.user._id, body, { new: true });
+    return res.status(200).json({
+      code: 200,
+      message: "Profile Updated ",
+      user,
+    });
+  } catch (error) {
+    return res.status(400).json({
+      code: 400,
+      message: error.message,
+      errors: { error: error.message },
+    });
+  }
+};
+
+
 module.exports = {
   login,
   create,
@@ -592,5 +627,6 @@ module.exports = {
   updatePassword,
   get,
   resetPassword,
-  deletePermanently
+  deletePermanently,
+  updateProfile
 };

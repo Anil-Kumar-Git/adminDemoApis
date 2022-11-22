@@ -37,7 +37,7 @@ exports.auth = async (req, res, next) => {
       }
       return res
         .status(code)
-        .json({ code, message: "Authentication token is invalid", errors: {} });
+        .json({ code, message: "Authentication token is invalid", errors: {err:"data.user"} });
     } catch (err) {
       return res.status(code).json({
         code,
@@ -48,7 +48,7 @@ exports.auth = async (req, res, next) => {
   } else {
     return res
       .status(code)
-      .json({ code, message: "Authentication token is invalid", errors: {} });
+      .json({ code, message: "Authentication token is invalid", errors: {err:"catch"} });
   }
 };
 
@@ -75,22 +75,21 @@ exports.beforeAuth = (req, res, next) => {
     try {
       const authorization = req.headers.authorization;
       const data = jwt.verify(authorization, process.env.JWTSECRET);
-
-      if (data._id) {
+      if (data._id || data.user._id) {
         req._id = data._id;
         return next();
       }
       return res
         .status(code)
-        .json({ code, message: "Authentication token is invalid", errors: {} });
+        .json({ code, message: "Authentication token is invalid", errors: {err :"not id"} });
     } catch (err) {
       return res
         .status(code)
-        .json({ code, message: "Authentication token is invalid", errors: {} });
+        .json({ code, message: "Authentication token is invalid", errors: {err:"catch"} });
     }
   } else {
     return res
       .status(code)
-      .json({ code, message: "Authentication token is invalid", errors: {} });
+      .json({ code, message: "Authentication token is invalid", errors: {err:"not header"} });
   }
 };
