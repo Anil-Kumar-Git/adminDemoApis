@@ -36,6 +36,6 @@ router.get("/get-all", auth, adminAuth, getAllPage);
 router.get("/:id", auth, adminAuth, getPageById);
 router.post("/", auth, adminAuth, validatePage, createPage);
 router.patch("/:id", auth, adminAuth, validateContent,updatePage);
-router.post("/uplode-multer",auth, adminAuth,  upload.single('image'), multerPage);
+router.post("/uplode-multer",auth, adminAuth, upload.single('image'), multerPage);
 
 module.exports = router;

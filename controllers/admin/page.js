@@ -84,7 +84,21 @@ const getAllPage = async (req, res) => {
 };
 
 const multerPage = async (req, res) => {
-  res.json(req.file);
+  let code=400;
+  if(req.file){
+    code = 200;
+    return res.status(code).json({
+      code,
+      message: "image uploaded",
+      file:req.file
+    });
+  }else{
+    return res.status(code).json({
+      code,
+      message: "please select a file",
+    });
+  }
+
 };
 
 module.exports = {

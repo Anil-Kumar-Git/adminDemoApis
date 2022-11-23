@@ -15,18 +15,21 @@ app.use(bodyParser.urlencoded({extended:false}))
 app.use(bodyParser.json())
 
 app.use("/uploads", express.static("uploads"));
+app.use("/users",require("./routers/users"));
+app.use("/admin/user",require("./routers/admin/user_router"));
+app.use("/admin/order", require("./routers/admin/order"));
+app.use("/admin/page", require("./routers/admin/page"));
+app.use("/user-notification", require("./routers/userNotification"));
+app.use("/admin-notification", require("./routers/adminNotification"));
+
 app.use("/service", require("./routers/service"));
 app.use("/page", require("./routers/page"));
 // app.use("/order", require("./routers/order"));
-// // app.use("/user-notification", require("./routes/userNotification.js"));
-// app.use("/admin-notification", require("./routes/adminNotification.js"));
 // app.use("/order_details", require("./routes/order_details.js"));
-app.use("/admin/order", require("./routers/admin/order"));
-app.use("/admin/page", require("./routers/admin/page"));
+
 // app.use("/notificationLogs", require("./routes/notificationLogs"));
 // app.use("/card", require("./routes/payment.js"));
-app.use("/users",require("./routers/users"));
-app.use("/admin/user",require("./routers/admin/user_router"))
+
 
 app.use((err, req, res, next) => {
     err.statusCode = err.statusCode || 500;
